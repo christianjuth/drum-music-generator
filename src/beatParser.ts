@@ -5,18 +5,21 @@ const parsePattern = (pattern: string) =>
 
 const DURATIONS = {
   EIGHTH: 1 / 8,
+  EIGHTH_TRIP: 1 / 8 / 3,
   QUARTER: 1 / 4,
   HALF: 1 / 2,
   SIXTEENTH: 1 / 16,
 };
 
 export function createBeatParser(patterns: string[]) {
+  let runningBars = 0;
   let _patterns: string[][][] = [];
   let delays: number[] = [];
 
   const reset = () => {
     delays = patterns.map(() => 0);
     _patterns = patterns.map(parsePattern);
+    runningBars = 0;
   };
   reset();
 
@@ -46,6 +49,9 @@ export function createBeatParser(patterns: string[]) {
         case "8":
           durationFloat = DURATIONS.EIGHTH;
           break;
+        case "8t":
+          durationFloat = DURATIONS.EIGHTH;
+          break;
         case "16":
           durationFloat = DURATIONS.SIXTEENTH;
           break;
@@ -65,10 +71,15 @@ export function createBeatParser(patterns: string[]) {
       delays[j] -= minBeat;
     }
 
-    return {
+    const out = {
       triggers,
       duration: minBeat,
+      position: runningBars,
     };
+
+    runningBars += minBeat;
+
+    return out;
   };
 
   const hasNext = () => {
@@ -80,12 +91,16 @@ export function createBeatParser(patterns: string[]) {
     return false;
   };
 
-  const getNotes = (stemDirection: number, highlightTo = 0) => {
+  const getNotes = (
+    stemDirection: number,
+    highlightTo = 0,
+    darkMode = false
+  ) => {
     let runningDuration = 0;
     let outputDuration = 0;
     let output: StaveNote[][] = [];
     let running: StaveNote[] = [];
-    let highlighted = false
+    let highlighted = false;
 
     while (hasNext()) {
       if (outputDuration >= 1) {
@@ -106,6 +121,9 @@ export function createBeatParser(patterns: string[]) {
       if (triggers.indexOf("S") !== -1) {
         keys.push("b/4");
       }
+      if (triggers.indexOf("s") !== -1) {
+        keys.push("b/4");
+      }
       if (triggers.indexOf("H") !== -1) {
         keys.push("g/5/x2");
       }
@@ -122,9 +140,17 @@ export function createBeatParser(patterns: string[]) {
         case DURATIONS.EIGHTH:
           durationStr = "8";
           break;
+        case DURATIONS.EIGHTH_TRIP:
+          durationStr = "8t";
+          break;
         case DURATIONS.SIXTEENTH:
           durationStr = "16";
           break;
+      }
+
+      if (keys.length === 0) {
+        keys.push(stemDirection > 0 ? "g/5" : "f/4");
+        durationStr += "r";
       }
 
       const s = new StaveNote({
@@ -133,10 +159,11 @@ export function createBeatParser(patterns: string[]) {
         stem_direction: stemDirection,
       });
 
-
       if (highlightTo === runningDuration && !highlighted) {
         s.setStyle({ fillStyle: "red", strokeStyle: "red" });
-        highlighted = true
+        highlighted = true;
+      } else if (darkMode) {
+        s.setStyle({ fillStyle: "white", strokeStyle: "white" });
       }
       runningDuration += duration;
 

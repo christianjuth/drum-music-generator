@@ -8,6 +8,10 @@ const Sheet = styled.div`
   flex-direction: column;
   align-items: center;
   justify-content: center;
+
+  svg {
+    height: 165px;
+  }
 `;
 
 const { Factory } = Vex.Flow;
@@ -15,11 +19,13 @@ const { Factory } = Vex.Flow;
 export function Music({
   upVoices,
   downVoices,
-  highlightTo = 0
+  highlightTo = 0,
+  darkMode = true,
 }: {
   upVoices: string[];
   downVoices: string[];
-  highlightTo: number
+  highlightTo: number;
+  darkMode: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -44,8 +50,15 @@ export function Music({
       });
       const score = vf.EasyScore();
 
+      if (darkMode) {
+        // @ts-ignore
+        vf.context.setFillStyle("white");
+        // @ts-ignore
+        vf.context.setStrokeStyle("white");
+      }
+
       let x = 0;
-      let y = 0;
+      let y = 50;
 
       const appendSystem = (width: number) => {
         elmWidth += width + 10;
@@ -54,12 +67,16 @@ export function Music({
         return system;
       };
 
-      const voice1Sections = upBeatParser.getNotes(1, highlightTo);
-      const voice2Sections = downBeatParser.getNotes(-1, highlightTo);
+      const voice1Sections = upBeatParser.getNotes(1, highlightTo, darkMode);
+      const voice2Sections = downBeatParser.getNotes(-1, highlightTo, darkMode);
 
       const beamSets: Beam[][] = [];
 
-      for (let i = 0; i < voice1Sections.length; i++) {
+      for (
+        let i = 0;
+        i < Math.min(voice1Sections.length, voice2Sections.length);
+        i++
+      ) {
         const voice1 = score.voice(voice1Sections[i]);
         const voice2 = score.voice(voice2Sections[i]);
 
@@ -69,10 +86,17 @@ export function Music({
           )
         );
 
-        let system = appendSystem(i === 0 ? 310 : 275);
+        let system = appendSystem(i === 0 ? 420 : 375);
         const stave = system.addStave({
           voices: [voice1, voice2],
         });
+
+        if (darkMode) {
+          // @ts-ignore
+          vf.context.setFillStyle("white");
+          // @ts-ignore
+          vf.context.setStrokeStyle("white");
+        }
 
         if (i === 0) {
           stave.addClef("percussion").addTimeSignature("4/4");
@@ -87,6 +111,10 @@ export function Music({
 
       for (const beams of beamSets) {
         for (const beam of beams) {
+          if (darkMode) {
+            beam.setStyle({ fillStyle: "white" });
+          }
+
           beam.setContext(vf.getContext()).draw();
         }
       }
@@ -94,7 +122,7 @@ export function Music({
       // @ts-ignore
       elm.getElementsByTagName("svg")[0].style.width = `${elmWidth}px`;
     }
-  }, [upBeatParser, downBeatParser, highlightTo]);
+  }, [upBeatParser, downBeatParser, highlightTo, darkMode]);
 
   return <Sheet ref={ref} id="output" />;
 }
